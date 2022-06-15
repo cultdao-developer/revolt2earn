@@ -73,21 +73,38 @@ contract Treasury is
     ReentrancyGuardUpgradeable
 {
     using SafeMathUpgradeable for uint256;
+    // Dead address to burn tokens
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    // address of rvlt token
     address public rvlt;
+    // address of DAO contract
     address public dao;
+    // address of uRVLT token
     address public uRvlt;
+    // address of multisign wallet address
     address public multSignWallet;
+    // address of exchange router
     address public router;
-
+    // array path of weth and rvlt
     address[] private path;
+    // array path of rvlt, weth, and usdc 
+    address[] private pathUSDC;
+    // address of usdc token
     address public USDC;
+
+    /**
+      * @notice initialize params
+      * @param _rvlt address of rvlt token
+      * @param _router address of router contract
+      * @param _usdc address of rvlt token
+      */
     function initialize(        
         address _rvlt,
         address _router,
         address _usdc
         ) public initializer {
         require(_rvlt != address(0),"initialize: Invalid address");
+        require(_usdc != address(0),"initialize: Invalid address");
         require(_router != address(0),"initialize: Invalid address");
         rvlt = _rvlt;
         router = _router;
@@ -98,42 +115,61 @@ contract Treasury is
         path.push(rvlt);
         path.push(IUniswapV2Router(router).WETH());
         USDC = _usdc;
+        pathUSDC.push(rvlt);
+        pathUSDC.push(IUniswapV2Router(router).WETH());
+        pathUSDC.push(USDC);
     }
 
     function _authorizeUpgrade(address) internal view override {
         require(owner() == msg.sender, "Only owner can upgrade implementation");
     }
 
+    /**
+      * @notice Set DAO address
+      * @param _dao The address of DAO 
+      */
     function setDAOAddress(address _dao) external onlyOwner {
         require(_dao != address(0),"setDAOAddress: Invalid address");
         dao = _dao;
     }
 
+    /**
+      * @notice Set uRVLT address
+      * @param _urvlt The address of uRVLT 
+      */
     function setuRVLTAddress(address _urvlt) external onlyOwner {
         require(_urvlt != address(0),"setDAOAddress: Invalid address");
         uRvlt = _urvlt;
     }
 
+    /**
+      * @notice Set multiSign address
+      * @param _multiSignAddress The address of multiSign 
+      */
     function setMultiSignAddress(address _multiSignAddress) external onlyOwner {
         require(_multiSignAddress != address(0),"setMultiSignAddress: Invalid address");
         multSignWallet = _multiSignAddress;
     }
 
+    /**
+      * @notice return rvlt price in usdc
+      * @param _amount The amount of uRvlt 
+      */
     function revoltPriceInUSD(uint256 _amount) public view returns (uint256) {
-        address[] memory pathUSDC;
-        pathUSDC[0] = rvlt;
-        pathUSDC[1] = IUniswapV2Router(router).WETH();
-        pathUSDC[2] = USDC;
         uint256[] memory revoltAmount = IUniswapV2Router(router).getAmountsOut(_amount, pathUSDC);
         return revoltAmount[2];
     }
 
+    /**
+      * @notice validatePayout used to distribute fund
+      */
     function validatePayout() external {
         uint256 balance = IERC20Upgradeable(rvlt).balanceOf(address(this));
-        uint256[] memory getRvltAmountOneETH = IUniswapV2Router(router).getAmountsOut(balance, path);
-
-        if(IGovernance(dao).nextInvesteeFund()<IGovernance(dao).nextInvestee()){
-            fundInvestee(getRvltAmountOneETH[1]);
+        if(balance > 0) {
+            uint256[] memory getRvltAmountOneETH = IUniswapV2Router(router).getAmountsOut(balance, path);
+            if(IGovernance(dao).nextInvesteeFund()<IGovernance(dao).nextInvestee()){
+                fundInvestee(getRvltAmountOneETH[1]);
+            }
         }
     }
 

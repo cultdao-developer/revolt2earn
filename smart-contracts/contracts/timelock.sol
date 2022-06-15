@@ -19,13 +19,18 @@ contract Timelock is Initializable,UUPSUpgradeable{
     uint public constant MINIMUM_DELAY = 1;
     uint public constant MAXIMUM_DELAY = 30 days;
 
+    // address of admin
     address public admin;
+    // address of pending admin
     address public pendingAdmin;
+    // delay value
     uint public delay;
+    // admin initialize status 
     bool public adminInitialized;
-
+    // mapping with queue transactions
     mapping (bytes32 => bool) public queuedTransactions;
 
+    // initialize contract values
     function initialize(address admin_, uint delay_) public initializer{
         require(admin_ != address(0), "Timelock::constructor: Invalid address.");
         require(delay_ >= MINIMUM_DELAY, "Timelock::constructor: Delay must exceed minimum delay.");
@@ -37,6 +42,7 @@ contract Timelock is Initializable,UUPSUpgradeable{
 
     receive() external payable {}
 
+    // set or update delay values
     function setDelay(uint delay_) public {
         require(msg.sender == address(this), "Timelock::setDelay: Call must come from Timelock.");
         require(delay_ >= MINIMUM_DELAY, "Timelock::setDelay: Delay must exceed minimum delay.");
@@ -46,6 +52,7 @@ contract Timelock is Initializable,UUPSUpgradeable{
         emit NewDelay(delay);
     }
 
+    // accept pending admin address
     function acceptAdmin() public {
         require(msg.sender == pendingAdmin, "Timelock::acceptAdmin: Call must come from pendingAdmin.");
         admin = msg.sender;
@@ -54,6 +61,7 @@ contract Timelock is Initializable,UUPSUpgradeable{
         emit NewAdmin(admin);
     }
 
+    // set pending admin address
     function setPendingAdmin(address pendingAdmin_) public {  
         require(pendingAdmin_ != address(0), "Timelock::setPendingAdmin: Invalid address");             
         if (adminInitialized) {
@@ -67,8 +75,10 @@ contract Timelock is Initializable,UUPSUpgradeable{
         emit NewPendingAdmin(pendingAdmin);
     }
 
+    // queue transaction only by admin address
     function queueTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public returns (bytes32) {
         require(msg.sender == admin, "Timelock::queueTransaction: Call must come from admin.");
+        require(target != address(0),"Timelock::queueTransaction: Invalid address");
         require(eta >= getBlockTimestamp().add(delay), "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
@@ -78,8 +88,10 @@ contract Timelock is Initializable,UUPSUpgradeable{
         return txHash;
     }
 
+    // cancel transaction only by admin address
     function cancelTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public {
         require(msg.sender == admin, "Timelock::cancelTransaction: Call must come from admin.");
+        require(target != address(0),"Timelock::cancelTransaction: Invalid address");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = false;
@@ -87,6 +99,7 @@ contract Timelock is Initializable,UUPSUpgradeable{
         emit CancelTransaction(txHash, target, value, signature, data, eta);
     }
 
+    // execute transaction only by admin address
     function executeTransaction(address target, uint value, string memory signature, bytes memory data, uint eta) public payable returns (bytes memory) {
         require(target != address(0), "Timelock::executeTransaction: Invalid address");
         require(msg.sender == admin, "Timelock::executeTransaction: Call must come from admin.");

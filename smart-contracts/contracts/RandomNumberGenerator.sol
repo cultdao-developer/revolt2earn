@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -44,6 +44,7 @@ contract RandomNumberGenerator is
     // Number of random number to generate;
     uint32 public numWords;
 
+    // mapping of random words
     mapping(uint256 => uint256[]) public randomWords;
     // Keep track of requests made to coordinator.
     uint256 public latestRequestID;
@@ -51,31 +52,44 @@ contract RandomNumberGenerator is
     // Keep track of all the request Ids with counter.
     uint256[] public requestIds;
 
+    // last request time of vrf
     uint256 public lastRequestTime;
 
+    // Interval of random number generator
     uint256 public randomNumberInterval;
 
+    // Represent subscription id
     uint64 public subscriptionId;
 
+    // request initiated or not
     bool public isRequestInitialised;
 
+    // last fullfill id of pool
     uint256 public lastFulfilledId;
 
-    bool public isAvailableforInitialize;
+    // available for initialize
+    bool public isAvailableForInitialize;
 
+    // array of nft owners
     address public nftAddress;
 
+    // aray of nft token ids
     uint256[] public tokenIds;
 
+    // array of all nft owners
     address[] public nftOwners;
 
+    // minimum stakers require for random number generation
     uint256 public minimumStakersRequired;
+
+    event RandomNumberGenerationTimeUpdate(uint256 oldRandomNumberInterval, uint256 newRandomNumberInterval);
+    event UpdateVrfConfiguration(address vrfCoordinator, bytes32 keyHash, uint32 callbackGasLimit, uint16 requestConfirmations, uint32 numWords, uint64 subscriptionId);
 
     /**
      * @dev Throws if called by any account other than the uRevolt contract.
      */
     modifier eligibleForEnableInitialize() {
-        require(isAvailableforInitialize, "Random: caller is not the uRevolt");
+        require(isAvailableForInitialize, "Random: caller is not the uRevolt");
         _;
     }
 
@@ -125,6 +139,7 @@ contract RandomNumberGenerator is
      * @param _uRevolt address of uRevolt contract.
      */
     function initialize(address _uRevolt) public initializer {
+        require(_uRevolt != address(0), "Invalid _uRevolt address");
         __Ownable_init();
         __ReentrancyGuard_init();
         uRevolt = _uRevolt;
@@ -140,6 +155,7 @@ contract RandomNumberGenerator is
         address _nftAddress,
         uint256[] memory _tokenIds
     ) external onlyOwner {
+        require(_nftAddress != address(0), "Invalid _nftAddress address");
         nftAddress = _nftAddress;
         tokenIds = _tokenIds;
     }
@@ -183,12 +199,14 @@ contract RandomNumberGenerator is
         uint32 _numWords,
         uint64 _subscriptionId
     ) public onlyOwner {
+        require(_vrfCoordinator != address(0), "Invalid _vrfCoordinator address");
         vrfCoordinator = _vrfCoordinator;
         keyHash = _keyHash;
         callbackGasLimit = _callbackGasLimit;
         requestConfirmations = _requestConfirmations;
         numWords = _numWords;
         subscriptionId = _subscriptionId;
+        emit UpdateVrfConfiguration(vrfCoordinator, keyHash, callbackGasLimit, requestConfirmations, numWords, subscriptionId);
     }
 
     /**
@@ -199,6 +217,7 @@ contract RandomNumberGenerator is
         external
         onlyOwner
     {
+        emit RandomNumberGenerationTimeUpdate(randomNumberInterval, _randomNumberInterval);
         randomNumberInterval = _randomNumberInterval;
     }
 
@@ -215,7 +234,7 @@ contract RandomNumberGenerator is
             randomWords[_requestCounter.current()],
             nftOwners
         );
-        isAvailableforInitialize = false;
+        isAvailableForInitialize = false;
     }
 
     /**     
@@ -253,7 +272,7 @@ contract RandomNumberGenerator is
             lastFulfilledId = _requestId;
             requestIds.push(_requestId);
             lastRequestTime = block.timestamp;
-            isAvailableforInitialize = true;
+            isAvailableForInitialize = true;
             emit FulfilledRequest(
                 _requestId,
                 _requestCounter.current(),
@@ -285,7 +304,7 @@ contract RandomNumberGenerator is
     }
 
     /**
-     * @notice Function overrided from UUPS
+     * @notice Function override from UUPS
      */
     function _authorizeUpgrade(address) internal view override onlyOwner {}
 }

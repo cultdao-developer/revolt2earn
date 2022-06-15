@@ -20,7 +20,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     struct UserInfo {
         uint256 amount;     // How many LP tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
-        uint256 rewaruRVLTDebt; // Reward debt in RVLT.
+        uint256 rewardURVLTDebt; // Reward debt in RVLT.
         //
         // We do some fancy math here. Basically, any point in time, the amount of RVLT
         // entitled to a user but is pending to be distributed is:
@@ -49,13 +49,14 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     IERC20Upgradeable public RVLT;
     // admin address.
     address public adminAddress;
+    // treasury address
     address public treasury;
+    // address of ransom number generator 
     address public numberGenerator;
-    // Bonus muliplier for early RVLT makers.
+    // Bonus multiplier for early RVLT makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
-
+    // random threasold value
     uint256 public randomThreshold;
-
     // Info of each pool.
     PoolInfo[] public poolInfo;
     // Info of each user that stakes LP tokens.
@@ -66,22 +67,31 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     uint256 public startBlock;
     // total RVLT staked
     uint256 public totalRVLTStaked;
+    // total reward of mandators
     uint256 public totalRewardMandators;
 
-    mapping(uint256 => uint256) totalStakedMandators;
-    mapping(uint256 => uint256) totalRVLTRewardMandators;
-    // total RVLT used for purchase land
-    uint256 public totalRevoltUsedForPurchase;
+    // mapping of total staked mandators
+    mapping(uint256 => uint256) public totalStakedMandators;
+    // mapping of total reward mandators
+    mapping(uint256 => uint256) public totalRVLTRewardMandators;
 
+    // last full fill id
     uint256 public lastFulfilledId;
+    // counter value of stakers
     uint256 public counter;
+    // mapping of random words
     mapping(uint256 => uint256[]) public randomWords;
-    mapping(uint256 => mapping(address => bool)) is_mandator;
+    // mapping of mandators with bool status
+    mapping(uint256 => mapping(address => bool)) private is_mandator;
+    // stake id of stakers mapping
     mapping(uint256 => address) public stakerId;
+    // mapping of stakers with their ids
     mapping(address => uint256) public stakerAddressID;
+    // mapping of stakers
     mapping(address => bool) public isStaker;
+    // array of selected indexes
     uint256[] public selectedIndexes;
-
+    // Generation started
     bool public isGenerationStarted;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -89,6 +99,9 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event AdminUpdated(address newAdmin);
     event RandomNumber(uint256 _lastFullFillId, address _manders);
+    event RandomNumberGeneratorUpdated(address _numberGenerator);
+    event CultMandatorsReward(uint256 lastFulfilledId, uint256 depositAmount);
+    event UpdateRandomGenerationNumber(uint256 oldRandomThreshold, uint256 newRandomThreshold);
 
     /** 
       * @dev Throws if called by any account other than the treasury contract.
@@ -98,18 +111,27 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         _;
     }
 
+    /** 
+      * @dev Throws if called by any account other than the random generation contract.
+     */
     modifier onlyRandomNumGenerator() {
         require(numberGenerator == _msgSender(), "uRevolt: caller is not the random generator contract");
         _;
     }
-
+    
+    /** 
+      * @dev Throws if random generation not started.
+     */
     modifier randomGenerationInProgress(){
-        require(isGenerationStarted, "uRevoltl: Random generation not started");
+        require(isGenerationStarted, "uRevolt: Random generation not started");
         _;
     }
 
+    /** 
+      * @dev Throws if random generation in progress.
+     */
     modifier randomGenerationCompleted(){
-        require(!isGenerationStarted, "uRevoltl: Random generation in progress");
+        require(!isGenerationStarted, "uRevolt: Random generation in progress");
         _;
     }
 
@@ -121,6 +143,8 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         uint256 _randomThreshold
         ) public initializer {
         require(_adminAddress != address(0), "initialize: Zero address");
+        require(_treasury != address(0), "initialize: Zero address");
+        require(address(_revolt) != address(0), "initialize: Zero address");
         OwnableUpgradeable.__Ownable_init();
         __ERC20_init_unchained("uRVLT", "uRVLT");
         __Pausable_init_unchained();
@@ -134,6 +158,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         treasury = _treasury;
     }
 
+    // return pool lenagth
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
@@ -141,6 +166,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(uint256 _allocPoint, IERC20Upgradeable _lpToken, bool _withUpdate) external onlyOwner {
+        require(address(_lpToken) != address(0), "add: Zero address");
         require(poolInfo.length < 1, "Cannot add more pool");
         _add(_allocPoint, _lpToken, _withUpdate);
     }
@@ -188,7 +214,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             uint256 _totalReward = rewardBalance.sub(pool.lastRVLTRewardBalance);
             accRVLTPerShare = accRVLTPerShare.add(_totalReward.mul(1e12).div(lpSupply));
         }
-        return user.amount.mul(accRVLTPerShare).div(1e12).sub(user.rewaruRVLTDebt);
+        return user.amount.mul(accRVLTPerShare).div(1e12).sub(user.rewardURVLTDebt);
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -221,7 +247,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             pool.lastRewardBlock = block.number;
             pool.accRVLTPerShare = 0;
             pool.lastTotalRVLTReward = 0;
-            user.rewaruRVLTDebt = 0;
+            user.rewardURVLTDebt = 0;
             pool.lastRVLTRewardBalance = 0;
             pool.totalRVLTReward = 0;
             return;
@@ -247,13 +273,13 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         updatePool(_pid);
         uint256 revoltReward;
         if (user.amount > 0) {
-            revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewaruRVLTDebt);
+            revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewardURVLTDebt);
             pool.lpToken.safeTransfer(_userAddress, revoltReward);
         }
         user.amount = user.amount.add(_amount);
-        user.rewaruRVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
+        user.rewardURVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
         if(_pid == 0) {
-            pool.lastRVLTRewardBalance = pool.lpToken.balanceOf(address(this)).sub(totalRVLTStaked);
+            pool.lastRVLTRewardBalance = pool.lpToken.balanceOf(address(this)).sub(totalRVLTStaked).sub(totalRewardMandators);
             pool.lpToken.safeTransferFrom(address(_userAddress), address(this), _amount);
             totalRVLTStaked = totalRVLTStaked.add(_amount);
             _mint(_userAddress,_amount);
@@ -266,6 +292,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         emit Deposit(_userAddress, _pid, _amount);
     }
 
+    // Withdraw RVLT tokens from MasterChef.
     function withdraw(uint256 _pid, uint256 _amount) external randomGenerationCompleted nonReentrant{
         require(_pid == 0,"Wrong pool Id");
         _withdraw(_pid,msg.sender,_amount);
@@ -280,13 +307,13 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
 
-        uint256 revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewaruRVLTDebt);
+        uint256 revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewardURVLTDebt);
         pool.lpToken.safeTransfer(_userAddress, revoltReward);
 
         user.amount = user.amount.sub(_amount);
-        user.rewaruRVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
+        user.rewardURVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
         if(_pid == 0){
-            pool.lastRVLTRewardBalance = pool.lpToken.balanceOf(address(this)).sub(totalRVLTStaked);
+            pool.lastRVLTRewardBalance = pool.lpToken.balanceOf(address(this)).sub(totalRVLTStaked).sub(totalRewardMandators);
             totalRVLTStaked = totalRVLTStaked.sub(_amount);
             pool.lpToken.safeTransfer(address(_userAddress), _amount);
             _burn(_userAddress,_amount);
@@ -306,7 +333,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         
-        uint256 revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewaruRVLTDebt);
+        uint256 revoltReward = user.amount.mul(pool.accRVLTPerShare).div(1e12).sub(user.rewardURVLTDebt);
         pool.lpToken.safeTransfer(msg.sender, revoltReward);
         if(_pid == 0){
             pool.lastRVLTRewardBalance = pool.lpToken.balanceOf(address(this)).sub(totalRVLTStaked).sub(totalRewardMandators);
@@ -316,7 +343,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             pool.lastRVLTRewardBalance = totalRVLTRewardMandators[_pid];
         }
         
-        user.rewaruRVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
+        user.rewardURVLTDebt = user.amount.mul(pool.accRVLTPerShare).div(1e12);
     }
 
     // Update admin address by the previous admin.
@@ -327,9 +354,11 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         emit AdminUpdated(_adminAddress);
     }
 
+    // update random number generation address
     function setRandomNumberGenerator(address _numberGenerator) public onlyOwner {
         require(_numberGenerator != address(0), "Invalid numberGenerator address");
         numberGenerator = _numberGenerator;
+        emit RandomNumberGeneratorUpdated(_numberGenerator);
     }
 
     function _mint(address to, uint256 amount)
@@ -348,6 +377,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         super._burn(account, amount);
     }
 
+    // update stake id to each stakers
     function updateUserAddress() internal {
         UserInfo storage user = userInfo[0][msg.sender];
         if (user.amount > 0 && !isStaker[msg.sender]) {
@@ -362,7 +392,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             stakerAddressID[tempAddress] = tempId;
             stakerId[counter.sub(1)] = address(0);
             stakerAddressID[msg.sender] = 0;
-            isStaker[msg.sender] = true;
+            isStaker[msg.sender] = false;
             counter = counter.sub(1);
         }
     }
@@ -391,20 +421,26 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         super._delegate(delegator,delegatee);
     }
 
+    // update cult mandators reward only treasury contract can call this method
     function updateCultMandatorsReward(uint256 _depositAmount) external onlyTreasury{
         RVLT.safeTransferFrom(treasury,address(this),_depositAmount);
         totalRewardMandators = totalRewardMandators.add(_depositAmount);
         totalRVLTRewardMandators[lastFulfilledId] = totalRVLTRewardMandators[lastFulfilledId].add(_depositAmount);
+        emit CultMandatorsReward(lastFulfilledId, _depositAmount);
     }
 
-    function updateNumberOfRandomGeneration(uint256 _newNumber) external onlyOwner{
-        randomThreshold = _newNumber;
+    // update random number generation threasold value
+    function updateNumberOfRandomGeneration(uint256 _randomThreshold) external onlyOwner{
+	    emit UpdateRandomGenerationNumber(randomThreshold, _randomThreshold);
+        randomThreshold = _randomThreshold;
     }
 
+    // return true if address is cult mandator otherwise false
     function iCultMandator(address _userAddress) public view returns(bool){
         return is_mandator[lastFulfilledId][_userAddress];
     }
 
+    // initialize random address selection only random generation contract can call this method
     function initializeRandomAddressSelection(uint256 _lastFulfilledId, uint256[] memory _randomWords, address[] memory _nftOwners) external onlyRandomNumGenerator nonReentrant{
         require(_lastFulfilledId == poolInfo.length, "Configuration not matched");
         lastFulfilledId = _lastFulfilledId;
@@ -418,9 +454,9 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             UserInfo storage user = userInfo[0][_nftOwners[i]];
             _deposit(lastFulfilledId,_nftOwners[i], user.amount);
         }
-
     }
 
+    // generate random number with latest pool id.
     function randomSelectUsers(uint16 numberOfUsers) external randomGenerationInProgress nonReentrant{
         _randomSelectUsers(
             numberOfUsers,
@@ -439,9 +475,10 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             value =
                 uint256(keccak256(abi.encodePacked(one, value)));
             uint256 tmpValue = value % counter;
-            uint256 reps = value % 10;
-            uint256 gap = uint256(keccak256(abi.encodePacked(one, reps)))%10;
-            for (uint256 j = 0; j< reps; j++){
+            uint256 reps = value % 11;
+            uint256 gapMod = numberOfUsers < 11 ? numberOfUsers : 11;
+            uint256 gap = uint256(keccak256(abi.encodePacked(one, reps)))% gapMod ;
+            for (uint256 j = 0; j< reps ; j++){
             if (
                 !is_mandator[lastFulfilledId][stakerId[tmpValue]] &&
                 stakerId[tmpValue] != address(0) &&
@@ -450,7 +487,9 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             ) {
                 is_mandator[lastFulfilledId][stakerId[tmpValue]] = true;
                 selectedIndexes.push(tmpValue);
-                RandomNumber(lastFulfilledId, stakerId[tmpValue]);
+                UserInfo storage user = userInfo[0][stakerId[tmpValue]];
+                _deposit(lastFulfilledId, stakerId[tmpValue], user.amount);
+                emit RandomNumber(lastFulfilledId, stakerId[tmpValue]);
             }
             tmpValue = tmpValue + gap;
             }

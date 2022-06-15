@@ -78,9 +78,6 @@ contract GovernorBravoDelegateStorageV1 is GovernorBravoDelegatorStorage {
     /// @notice The duration of voting on a proposal, in seconds
     uint public votingPeriod;
 
-    /// @notice The number of votes required in order for a voter to become a proposer
-    uint public proposalThreshold;
-
     /// @notice Initial proposal id set at become
     uint public initialProposalId;
 
@@ -191,8 +188,6 @@ interface TimelockInterface {
 }
 
 interface uRvltInterface {
-    /// @notice Get the past vote of the users
-    function getPastVotes(address account, uint blockNumber) external view returns (uint256);
     function iCultMandator(address _user) external view returns (bool);
     function balanceOf(address amount) external view returns (uint256);
 }

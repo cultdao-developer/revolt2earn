@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./GovernorBravoInterfaces.sol";
 
 contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDelegateStorageV2, GovernorBravoEvents {
+    /// @notice Investee Details with fund.
     struct InversteeDetails {
         address _investee;
         uint _fundAmount;
@@ -45,7 +46,7 @@ contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDel
     /// @notice proposal period
     uint public proposalPeriod;
 
-    /// @notice rvly price to create proposal
+    /// @notice rvlt price to create proposal
     uint public rvltPriceProposal;
 
     /**
@@ -124,6 +125,9 @@ contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDel
         return newProposal.id;
     }
 
+     /**
+      * @notice Return true if proposal period active otherwise false 
+      */
     function isProposalTime() public view returns(bool) {
         uint reminder = sub256(block.timestamp, governanceStartTime) % add256(votingPeriod, proposalPeriod);
         return reminder <= proposalPeriod;
@@ -326,7 +330,6 @@ contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDel
         return investeeDetails[sub256(nextInvesteeFund,1)];
     }
 
-
     /**
       * @notice Admin function for setting the voting period
       * @param newVotingPeriod new voting period, in blocks
@@ -345,6 +348,7 @@ contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDel
      * @param expiration Expiration for account whitelist status as timestamp (if now < expiration, whitelisted)
      */
     function _setWhitelistAccountExpiration(address account, uint expiration) external {
+        require(account != address(0), "GovernorBravo::_setWhitelistAccountExpiration: Zero address");
         require(msg.sender == admin || msg.sender == whitelistGuardian, "GovernorBravo::_setWhitelistAccountExpiration: admin only");
         whitelistAccountExpirations[account] = expiration;
 
@@ -371,6 +375,7 @@ contract GovernorBravoDelegate is Initializable,UUPSUpgradeable,GovernorBravoDel
       * @param governorAlpha The address for the Governor to continue the proposal id count from
       */
     function _initiate(address governorAlpha) external {
+        require(governorAlpha != address(0), "GovernorBravo::_initiate: Zero address");
         require(msg.sender == admin, "GovernorBravo::_initiate: admin only");
         require(initialProposalId == 0, "GovernorBravo::_initiate: can only initiate once");
         proposalCount = GovernorAlpha(governorAlpha).proposalCount();

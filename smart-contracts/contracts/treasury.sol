@@ -59,10 +59,11 @@ interface IGovernance {
     function _fundInvestee() external returns(InversteeDetailsStruct.InversteeDetails memory);
     function nextInvesteeFund() external pure returns(uint256);
     function nextInvestee() external pure returns(uint256);
+    function investeeDetails(uint256 _investeeId) external returns(InversteeDetailsStruct.InversteeDetails memory);
 }
 
 interface IURevolt {
-    function updateCultMandorsReward(uint256 _reward) external;
+    function updateCultMandatorsReward(uint256 _reward) external;
 }
 
 contract Treasury is
@@ -112,8 +113,8 @@ contract Treasury is
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         __Context_init_unchained();
         __Pausable_init_unchained();
-        path.push(rvlt);
         path.push(IUniswapV2Router(router).WETH());
+        path.push(rvlt);
         USDC = _usdc;
         pathUSDC.push(rvlt);
         pathUSDC.push(IUniswapV2Router(router).WETH());
@@ -165,9 +166,13 @@ contract Treasury is
       */
     function validatePayout() external {
         uint256 balance = IERC20Upgradeable(rvlt).balanceOf(address(this));
-        if(balance > 0) {
-            uint256[] memory getRvltAmountOneETH = IUniswapV2Router(router).getAmountsOut(balance, path);
-            if(IGovernance(dao).nextInvesteeFund()<IGovernance(dao).nextInvestee()){
+        InversteeDetailsStruct.InversteeDetails memory investee = IGovernance(dao).investeeDetails(IGovernance(dao).nextInvesteeFund());
+        if(investee._investee != address(0) && investee._fundAmount == 0) {
+            InversteeDetailsStruct.InversteeDetails memory investee = IGovernance(dao)._fundInvestee();
+        }
+        if(balance > 0 && investee._fundAmount != 0) {
+            uint256[] memory getRvltAmountOneETH = IUniswapV2Router(router).getAmountsOut(investee._fundAmount, path);
+            if((IGovernance(dao).nextInvesteeFund()<IGovernance(dao).nextInvestee()) && balance >= getRvltAmountOneETH[1]){
                 fundInvestee(getRvltAmountOneETH[1]);
             }
         }
@@ -175,13 +180,11 @@ contract Treasury is
 
     function fundInvestee(uint256 totalAmount) internal nonReentrant{
         InversteeDetailsStruct.InversteeDetails memory investee = IGovernance(dao)._fundInvestee();
-        if(investee._fundAmount <= totalAmount) {
-            IERC20Upgradeable(rvlt).transfer(DEAD_ADDRESS, investee._fundAmount.mul(25).div(100));
-            IERC20Upgradeable(rvlt).transfer(investee._investee, investee._fundAmount.mul(40).div(100));
-            IERC20Upgradeable(rvlt).transfer(uRvlt, investee._fundAmount.mul(25).div(100));
-            IERC20Upgradeable(rvlt).transfer(multSignWallet, investee._fundAmount.mul(5).div(100));
-            IERC20Upgradeable(rvlt).approve(uRvlt, investee._fundAmount.mul(5).div(100));
-            IURevolt(uRvlt).updateCultMandorsReward(investee._fundAmount.mul(5).div(100));
-        }
+        IERC20Upgradeable(rvlt).transfer(DEAD_ADDRESS, totalAmount.mul(25).div(100));
+        IERC20Upgradeable(rvlt).transfer(investee._investee, totalAmount.mul(40).div(100));
+        IERC20Upgradeable(rvlt).transfer(uRvlt, totalAmount.mul(25).div(100));
+        IERC20Upgradeable(rvlt).transfer(multSignWallet, totalAmount.mul(5).div(100));
+        IERC20Upgradeable(rvlt).approve(uRvlt, totalAmount.mul(5).div(100));
+        IURevolt(uRvlt).updateCultMandatorsReward(totalAmount.mul(5).div(100));
     }
 }

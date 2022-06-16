@@ -136,11 +136,11 @@ describe("Treasury contract", function () {
         .transfer(treasury.address, "40000000000000000000");
       await rvltToken.connect(owner).transfer(addr2.address, "10");
       expect(await rvltToken.balanceOf(addr1.address)).to.equal(
-        "40"
+        "400000000000000000"
       );
       expect(
         await rvltToken.balanceOf("0x000000000000000000000000000000000000dEaD")
-      ).to.equal("25");
+      ).to.equal("250000000000000000");
     });
     it("Should fund to other investee ", async function () {
       await rvltToken
@@ -149,11 +149,11 @@ describe("Treasury contract", function () {
       await rvltToken.connect(owner).transfer(addr2.address, "10");
       await rvltToken.connect(owner).transfer(addr2.address, "10");
       expect(await rvltToken.balanceOf(addrs[0].address)).to.equal(
-        "80"
+        "400000000000000000"
       );
       expect(
         await rvltToken.balanceOf("0x000000000000000000000000000000000000dEaD")
-      ).to.equal("75");
+      ).to.equal("500000000000000000");
     });
     it("Should update the mapping", async function () {
       await rvltToken
@@ -166,11 +166,12 @@ describe("Treasury contract", function () {
       await rvltToken.connect(owner).transfer(addr2.address, "10");
       expect(await governance.nextInvesteeFund()).to.equal("2");
       expect(await rvltToken.balanceOf(addrs[0].address)).to.equal(
-        "80"
+        "400000000000000000"
       );
       expect(
         await rvltToken.balanceOf("0x000000000000000000000000000000000000dEaD")
-      ).to.equal("75");
+      ).to.equal("500000000000000000");
     });
   });
 });
+

@@ -42,7 +42,7 @@ contract MockURevolt is ERC20, ERC20Burnable, Ownable, ERC20Permit, ERC20Votes {
         super._burn(account, amount);
     }
 
-    function updateCultMandorsReward(uint _price) public {
+    function updateCultMandatorsReward(uint _price) public {
         IERC20(rvlt).transferFrom(msg.sender, address(this), _price);
     }    
 

@@ -93,6 +93,8 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     uint256[] public selectedIndexes;
     // Generation started
     bool public isGenerationStarted;
+    // constant cult mander amount
+    uint256 private _cultMandatorStakeAmount;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -102,6 +104,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
     event RandomNumberGeneratorUpdated(address _numberGenerator);
     event CultMandatorsReward(uint256 lastFulfilledId, uint256 depositAmount);
     event UpdateRandomGenerationNumber(uint256 oldRandomThreshold, uint256 newRandomThreshold);
+    event UpdateCultMandatorStatus(uint256 _lastFullFillId, address _mander, bool status);
 
     /** 
       * @dev Throws if called by any account other than the treasury contract.
@@ -156,6 +159,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         startBlock = _startBlock;
         randomThreshold = _randomThreshold;
         treasury = _treasury;
+	    _cultMandatorStakeAmount = 10 * 10**18;
     }
 
     // return pool lenagth
@@ -263,7 +267,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         require(_pid == 0,"Wrong pool Id");
         _deposit(_pid, msg.sender, _amount);
         if(iCultMandator(msg.sender)){
-            _deposit(lastFulfilledId, msg.sender, _amount);
+            _deposit(lastFulfilledId, msg.sender, 0);
         }
     }
 
@@ -297,7 +301,12 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         require(_pid == 0,"Wrong pool Id");
         _withdraw(_pid,msg.sender,_amount);
         if(iCultMandator(msg.sender)){
-            _withdraw(lastFulfilledId, msg.sender, _amount);
+            UserInfo storage user = userInfo[_pid][msg.sender];
+            if(user.amount == 0) {
+                _withdraw(lastFulfilledId, msg.sender, _cultMandatorStakeAmount);
+                is_mandator[lastFulfilledId][msg.sender] = false;
+                emit UpdateCultMandatorStatus(lastFulfilledId, msg.sender, false);
+            }
         }
     }
 
@@ -317,7 +326,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             totalRVLTStaked = totalRVLTStaked.sub(_amount);
             pool.lpToken.safeTransfer(address(_userAddress), _amount);
             _burn(_userAddress,_amount);
-        }else{
+        } else if(user.amount == 0) {
             totalRewardMandators = totalRewardMandators.sub(revoltReward);
             totalRVLTRewardMandators[_pid] = totalRVLTRewardMandators[_pid].sub(revoltReward);
             pool.lastRVLTRewardBalance = totalRVLTRewardMandators[_pid];
@@ -391,7 +400,6 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             stakerId[tempId] = tempAddress;
             stakerAddressID[tempAddress] = tempId;
             stakerId[counter.sub(1)] = address(0);
-            stakerAddressID[msg.sender] = 0;
             isStaker[msg.sender] = false;
             counter = counter.sub(1);
         }
@@ -451,8 +459,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
         selectedIndexes = blankArray;
         for(uint256 i =0; i < _nftOwners.length; i++ ){
             is_mandator[lastFulfilledId][_nftOwners[i]] = true;
-            UserInfo storage user = userInfo[0][_nftOwners[i]];
-            _deposit(lastFulfilledId,_nftOwners[i], user.amount);
+            _deposit(lastFulfilledId,_nftOwners[i], _cultMandatorStakeAmount);
         }
     }
 
@@ -487,8 +494,7 @@ contract uRevolt is Initializable, UUPSUpgradeable, ERC20Upgradeable, ERC20Permi
             ) {
                 is_mandator[lastFulfilledId][stakerId[tmpValue]] = true;
                 selectedIndexes.push(tmpValue);
-                UserInfo storage user = userInfo[0][stakerId[tmpValue]];
-                _deposit(lastFulfilledId, stakerId[tmpValue], user.amount);
+                _deposit(lastFulfilledId, stakerId[tmpValue], _cultMandatorStakeAmount);
                 emit RandomNumber(lastFulfilledId, stakerId[tmpValue]);
             }
             tmpValue = tmpValue + gap;

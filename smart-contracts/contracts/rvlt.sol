@@ -38,8 +38,8 @@ contract RVLT is Initializable,UUPSUpgradeable,ERC20Upgradeable, ERC20PermitUpgr
         ) public initializer {
         require(initialHolder != address(0),"initialize: Invalid address");
         OwnableUpgradeable.__Ownable_init();
-        ERC20Upgradeable.__ERC20_init("Revolt DAO", "RVLT");
-        ERC20PermitUpgradeable.__ERC20Permit_init("rvlt");
+        ERC20Upgradeable.__ERC20_init("Revolt 2 Earn", "RVLT");
+        ERC20PermitUpgradeable.__ERC20Permit_init("RVLT");
         ERC20VotesUpgradeable.__ERC20Votes_init_unchained();
         __Pausable_init_unchained();
         ERC20VotesCompUpgradeable.__ERC20VotesComp_init_unchained();

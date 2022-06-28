@@ -42,6 +42,7 @@ describe("Airdrop contract", function () {
       rvltToken.address,
       swap.address,
       usdcToken.address,
+      owner.address,
     ]);
     await treasury.deployed();
     await rvltToken.setTreasuryAddress(treasury.address);
@@ -120,3 +121,4 @@ describe("Airdrop contract", function () {
     });
   });
 });
+

@@ -45,6 +45,7 @@ describe("Treasury contract", function () {
       rvltToken.address,
       swap.address,
       usdcToken.address,
+      owner.address,
     ]);
     await treasury.deployed();
 

@@ -12,7 +12,7 @@ contract Airdrop is Ownable {
     event Transfer(address beneficiary, uint amount);
     event TokenAddress(address _oldToken, address _newToken);
 
-    /**
+    /** 
       * @notice Used to initialize the contract
       * @param _tokenAddr The address of the airdrop token
       */
@@ -41,6 +41,7 @@ contract Airdrop is Ownable {
       * @param _newTokenAddr new airdrop token address
       */
     function updateTokenAddress(address _newTokenAddr) public onlyOwner {
+        require(_newTokenAddr != address(0), "Invalid new token address");
         emit TokenAddress(tokenAddr, _newTokenAddr);
         tokenAddr = _newTokenAddr;
     }
@@ -52,6 +53,7 @@ contract Airdrop is Ownable {
       */
     function withdrawTokens(address beneficiary, uint256 _amount) public onlyOwner {
         require(IERC20(tokenAddr).balanceOf(address(this)) >= _amount, "Insufficient fund");
-        require(IERC20(tokenAddr).transfer(beneficiary, _amount));
+        require(IERC20(tokenAddr).transfer(beneficiary, _amount), "Failed to transfer token");
     }
 }
+

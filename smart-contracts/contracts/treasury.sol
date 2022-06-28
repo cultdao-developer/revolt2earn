@@ -98,26 +98,29 @@ contract Treasury is
       * @param _rvlt address of rvlt token
       * @param _router address of router contract
       * @param _usdc address of rvlt token
+      * @param _weth address of rvlt token
       */
     function initialize(        
         address _rvlt,
         address _router,
-        address _usdc
+        address _usdc,
+        address _weth
         ) public initializer {
         require(_rvlt != address(0),"initialize: Invalid address");
         require(_usdc != address(0),"initialize: Invalid address");
         require(_router != address(0),"initialize: Invalid address");
+        require(_weth != address(0), "initialize: Invalid address");
         rvlt = _rvlt;
         router = _router;
         OwnableUpgradeable.__Ownable_init();
         ReentrancyGuardUpgradeable.__ReentrancyGuard_init();
         __Context_init_unchained();
         __Pausable_init_unchained();
-        path.push(IUniswapV2Router(router).WETH());
+        path.push(_weth);
         path.push(rvlt);
         USDC = _usdc;
         pathUSDC.push(rvlt);
-        pathUSDC.push(IUniswapV2Router(router).WETH());
+        pathUSDC.push(_weth);
         pathUSDC.push(USDC);
     }
 
@@ -188,3 +191,4 @@ contract Treasury is
         IURevolt(uRvlt).updateCultMandatorsReward(totalAmount.mul(5).div(100));
     }
 }
+

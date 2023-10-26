@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract MockToken is
+contract MockTokenRVLT is
     Initializable,
     ERC20Upgradeable,
     OwnableUpgradeable,
@@ -28,16 +28,6 @@ contract MockToken is
 
     function mint(address to, uint256 amount) public onlyOwner {
         _mint(to, amount);
-    }
-
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual override {
-        uint256 fee = amount / 100;
-        super._transfer(from, address(this), fee);
-        return super._transfer(from, to, amount - fee);
     }
 
     function _authorizeUpgrade(

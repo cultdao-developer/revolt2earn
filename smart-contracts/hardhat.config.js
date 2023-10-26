@@ -1,16 +1,12 @@
 require("dotenv").config();
 
 require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-truffle5");
 require("@openzeppelin/hardhat-upgrades");
 require("@nomiclabs/hardhat-waffle");
-require("@openzeppelin/test-helpers");
-// require("hardhat-contract-sizer");
-require("@openzeppelin/test-helpers");
-require("@nomiclabs/hardhat-truffle5");
 require("hardhat-gas-reporter");
 require("solidity-coverage");
 
-// This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
@@ -27,28 +23,24 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  defaultNetwork: "kovan",
+  defaultNetwork: "hardhat",
   solidity: {
-    compilers: [
-      {
-        version: "0.8.2",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-    ],
+    version: "0.8.11",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
   },
   networks: {
     ropsten: {
-      url: process.env.ROPSTEN_URL || "",
+      url: process.env.GOERILI_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    kovan: {
-      url: process.env.KOVAN_URL || "",
+    testnet: {
+      url: process.env.MAIN_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -58,6 +50,6 @@ module.exports = {
     currency: "USD",
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: process.env.ETH_API_KEY
   },
 };

@@ -1,65 +1,42 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
+  // Get the Address from Ganache Chain to deploy.
   const [deployer] = await ethers.getSigners();
   console.log("Deployer address", deployer.address);
 
-  const RouterAddress = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+  const RVLTContract = await ethers.getContractFactory("RVLTSwap");
+  const MockToken = await ethers.getContractFactory("MockToken");
+  const MockTokenRVLT = await ethers.getContractFactory("MockTokenRVLT");
 
-  const usdcToken = await ethers.getContractFactory("MockToken");
-  const USDC = await usdcToken.deploy("USDC", "USDC");
-  console.log("usdc :- ", USDC.address);
-
-  const Token = await ethers.getContractFactory("RVLT");
-  const governanceToken = await ethers.getContractFactory(
-    "GovernorBravoDelegate"
+  const oldRVLT = await upgrades.deployProxy(
+    MockToken,
+    ["OldRVLT", "oldRVLT"]
   );
-  const treasuryContract = await ethers.getContractFactory("Treasury");
-  const timeLockContract = await ethers.getContractFactory("Timelock");
-  const uRvltContract = await ethers.getContractFactory("uRevolt");
+  await oldRVLT.deployed();
+  console.log("oldRVLT deployed to:", oldRVLT.address);
 
-  const rvltToken = await upgrades.deployProxy(Token, [
-    deployer.address,
-    "6666666666666000000000000000000",
-  ]);
-  await rvltToken.deployed();
-  console.log("rvlt Token ", rvltToken.address);
-  
-  const uRvltToken = await upgrades.deployProxy(uRvltContract, [
-    rvltToken.address,
-    deployer.address,
-    deployer.address,
-    100,
-    3,
-  ]);
+  const uRVLT = await upgrades.deployProxy(
+    MockTokenRVLT,
+    ["uRVLT", "uRVLT"]
+  );
+  await uRVLT.deployed();
+  console.log("uRVLT deployed to:", uRVLT.address);
 
-  await uRvltToken.deployed();
-  console.log("uRvlt Token ", uRvltToken.address);
+  const newRVLT = await upgrades.deployProxy(
+    MockTokenRVLT,
+    ["NRVLT", "NRVLT"]
+  );
+  await newRVLT.deployed();
+  console.log("newRVLT deployed to:", newRVLT.address);
 
-  const treasury = await upgrades.deployProxy(treasuryContract, [
-    rvltToken.address,
-    RouterAddress,
-    USDC.address,
-  ]);
-  await treasury.deployed();
-  console.log("Treasury Token ", treasury.address);
-
-  const timelock = await upgrades.deployProxy(timeLockContract, [
-    deployer.address,
-    10,
-  ]);
-  await timelock.deployed();
-  console.log("Timelock Token ", timelock.address);
-
-  const governance = await upgrades.deployProxy(governanceToken, [
-    timelock.address,
-    uRvltToken.address,
-    300,
-    treasury.address,
-    "200",
-    "100000000000000000000",
-  ]);
-  console.log("Governance Token ", governance.address);
+  // Deploy RVLT Swap
+  const swap = await upgrades.deployProxy(
+    RVLTContract,
+    [oldRVLT.address, newRVLT.address, uRVLT.address]
+  );
+  await swap.deployed();
+  console.log("RVLTSwap deployed to:", swap.address);
 }
 
 main();
